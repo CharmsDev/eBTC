@@ -27,18 +27,18 @@ pub struct NftContent {
 }
 
 pub fn app_contract(app: &App, tx: &Transaction, _x: &Data, _w: &Data) -> bool {
-    let result = match app.tag {
+    app_contract_impl(app, tx)
+        .context("contract not satisfied")
+        .unwrap();
+    true
+}
+
+pub fn app_contract_impl(app: &App, tx: &Transaction) -> anyhow::Result<()> {
+    match app.tag {
         NFT => can_mint_nft(app, tx),
         TOKEN => can_mint_or_burn_token(app, tx),
         VAULT => vault_contract_satisfied(app, tx),
         _ => unreachable!(),
-    };
-    match result {
-        Ok(()) => true,
-        Err(e) => {
-            eprintln!("{e:#}");
-            false
-        }
     }
 }
 
