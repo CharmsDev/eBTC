@@ -1,0 +1,21 @@
+[package]
+name = "ebtc"
+description = "A simple Charms app"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+charms-client = { version = "11.0.1" }
+charms-sdk = { version = "11.0.1" }
+serde = { version = "1.0", features = ["derive"] }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
+overflow-checks = true
+
+# Empty `[workspace]` section to make this a "top-level" project
+[workspace]

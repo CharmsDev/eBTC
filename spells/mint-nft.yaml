@@ -1,0 +1,19 @@
+version: 11
+
+tx:
+  ins:
+    - ${in_utxo_0}
+  outs:
+    - 0:
+        ticker: eBTC
+        name: eBTC
+        description: Bitcoin-backed token
+        url: https://ebtc.org
+        image: https://ebtc.org/logo.png
+        decimals: 0
+  coins:
+    - amount: ${amount_0}
+      dest: ${dest_0}
+
+app_public_inputs:
+  n/${app_id}/${app_vk}: ~

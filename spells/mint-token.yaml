@@ -1,0 +1,17 @@
+version: 11
+
+tx:
+  ins:
+    - ${in_utxo_0}
+  outs:
+    - 1: ${mint_amount}
+    - ~
+  coins:
+    - amount: ${vault_amount}
+      dest: bc1qrn970793udj0ugc3pj0hyrptts4rw5n7qxeya2
+    - amount: ${change_amount}
+      dest: ${change_dest}
+
+app_public_inputs:
+  t/${app_id}/${app_vk}: ~
+  c/${app_id}/${app_vk}: ~
