@@ -1,5 +1,6 @@
+use anyhow::{ensure, Context};
 use charms_client::utxo_id_hash;
-use charms_sdk::data::{charm_values, check, sum_token_amount, App, Data, Transaction, NFT, TOKEN};
+use charms_sdk::data::{charm_values, sum_token_amount, App, Data, Transaction, NFT, TOKEN};
 use hex_literal::hex;
 use serde::{Deserialize, Serialize};
 
@@ -24,78 +25,95 @@ pub struct NftContent {
 }
 
 pub fn app_contract(app: &App, tx: &Transaction, _x: &Data, _w: &Data) -> bool {
-    match app.tag {
-        NFT => check!(can_mint_nft(app, tx)),
-        TOKEN => check!(can_mint_or_burn_token(app, tx)),
-        VAULT => check!(vault_contract_satisfied(app, tx)),
+    let result = match app.tag {
+        NFT => can_mint_nft(app, tx),
+        TOKEN => can_mint_or_burn_token(app, tx),
+        VAULT => vault_contract_satisfied(app, tx),
         _ => unreachable!(),
+    };
+    match result {
+        Ok(()) => true,
+        Err(e) => {
+            eprintln!("{e:#}");
+            false
+        }
     }
-    true
 }
 
 /// NFT can be minted if identity == hash(1st input UTXO ID) and exactly one valid NFT output.
-fn can_mint_nft(app: &App, tx: &Transaction) -> bool {
+fn can_mint_nft(app: &App, tx: &Transaction) -> anyhow::Result<()> {
     let (utxo_id, _) = &tx.ins[0];
-    check!(utxo_id_hash(utxo_id) == app.identity);
+    ensure!(utxo_id_hash(utxo_id) == app.identity, "identity mismatch");
 
     let nft_charms = charm_values(app, tx.outs.iter()).collect::<Vec<_>>();
-    check!(nft_charms.len() == 1);
-    check!(nft_charms[0].value::<NftContent>().is_ok());
-    true
+    ensure!(nft_charms.len() == 1, "expected exactly one NFT output");
+    nft_charms[0].value::<NftContent>().context("invalid NFT content")?;
+    Ok(())
 }
 
 /// eBTC is minted/burned based on BTC locked/spent at the vault address.
 ///
 /// Balance equation:
 ///   token_out - token_in == (vault_out - n_vault_outs * DUST) - (vault_in - n_vault_ins * DUST)
-fn can_mint_or_burn_token(app: &App, tx: &Transaction) -> bool {
-    let coin_ins = tx.coin_ins.as_ref().expect("coin_ins required");
-    let coin_outs = tx.coin_outs.as_ref().expect("coin_outs required");
+fn can_mint_or_burn_token(app: &App, tx: &Transaction) -> anyhow::Result<()> {
+    let coin_ins = tx.coin_ins.as_ref().context("coin_ins required")?;
+    let coin_outs = tx.coin_outs.as_ref().context("coin_outs required")?;
 
-    let (vault_in, n_vault_ins) = vault_btc_total(coin_ins);
-    let (vault_out, n_vault_outs) = vault_btc_total(coin_outs);
+    let (vault_in, n_vault_ins) = vault_btc_total(coin_ins)?;
+    let (vault_out, n_vault_outs) = vault_btc_total(coin_outs)?;
 
     let effective_in = vault_in - n_vault_ins * DUST;
     let effective_out = vault_out - n_vault_outs * DUST;
 
-    let token_in = sum_token_amount(app, tx.ins.iter().map(|(_, v)| v)).unwrap_or(0);
-    let token_out = sum_token_amount(app, tx.outs.iter()).unwrap_or(0);
+    let token_in = sum_token_amount(app, tx.ins.iter().map(|(_, v)| v))?;
+    let token_out = sum_token_amount(app, tx.outs.iter())?;
 
     // Use wrapping arithmetic to handle both mint (positive delta) and burn (negative delta).
-    check!(token_out.wrapping_sub(token_in) == effective_out.wrapping_sub(effective_in));
-    true
+    ensure!(
+        token_out.wrapping_sub(token_in) == effective_out.wrapping_sub(effective_in),
+        "token balance mismatch: token delta ({}) != vault delta ({})",
+        token_out.wrapping_sub(token_in),
+        effective_out.wrapping_sub(effective_in)
+    );
+    Ok(())
 }
 
 /// Sum BTC amounts at the vault address and count the number of vault UTXOs.
-fn vault_btc_total(coins: &[charms_sdk::data::NativeOutput]) -> (u64, u64) {
+fn vault_btc_total(coins: &[charms_sdk::data::NativeOutput]) -> anyhow::Result<(u64, u64)> {
     let mut total = 0u64;
     let mut count = 0u64;
     for coin in coins {
         if coin.dest.as_slice() == VAULT_SPK {
-            assert!(coin.amount >= DUST, "vault UTXO amount must be >= DUST");
+            ensure!(coin.amount >= DUST, "vault UTXO amount {} < DUST", coin.amount);
             total += coin.amount;
             count += 1;
         }
     }
-    (total, count)
+    Ok((total, count))
 }
 
 /// Vault contract: every input and output carrying this charm must be at the vault address.
-fn vault_contract_satisfied(app: &App, tx: &Transaction) -> bool {
-    let coin_ins = tx.coin_ins.as_ref().expect("coin_ins required");
-    let coin_outs = tx.coin_outs.as_ref().expect("coin_outs required");
+fn vault_contract_satisfied(app: &App, tx: &Transaction) -> anyhow::Result<()> {
+    let coin_ins = tx.coin_ins.as_ref().context("coin_ins required")?;
+    let coin_outs = tx.coin_outs.as_ref().context("coin_outs required")?;
 
     for (i, (_, charms)) in tx.ins.iter().enumerate() {
         if charms.contains_key(app) {
-            check!(coin_ins[i].dest.as_slice() == VAULT_SPK);
+            ensure!(
+                coin_ins[i].dest.as_slice() == VAULT_SPK,
+                "input {i} with vault charm not at vault address"
+            );
         }
     }
     for (i, charms) in tx.outs.iter().enumerate() {
         if charms.contains_key(app) {
-            check!(coin_outs[i].dest.as_slice() == VAULT_SPK);
+            ensure!(
+                coin_outs[i].dest.as_slice() == VAULT_SPK,
+                "output {i} with vault charm not at vault address"
+            );
         }
     }
-    true
+    Ok(())
 }
 
 #[cfg(test)]
