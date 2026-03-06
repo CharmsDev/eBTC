@@ -68,12 +68,11 @@ fn can_mint_or_burn_token(app: &App, tx: &Transaction) -> anyhow::Result<()> {
     let token_in = sum_token_amount(app, tx.ins.iter().map(|(_, v)| v))?;
     let token_out = sum_token_amount(app, tx.outs.iter())?;
 
-    // Use wrapping arithmetic to handle both mint (positive delta) and burn (negative delta).
+    let token_delta = token_out as i128 - token_in as i128;
+    let vault_delta = effective_out as i128 - effective_in as i128;
     ensure!(
-        token_out.wrapping_sub(token_in) == effective_out.wrapping_sub(effective_in),
-        "token balance mismatch: token delta ({}) != vault delta ({})",
-        token_out.wrapping_sub(token_in),
-        effective_out.wrapping_sub(effective_in)
+        token_delta == vault_delta,
+        "token balance mismatch: token delta ({token_delta}) != vault delta ({vault_delta})"
     );
     Ok(())
 }
