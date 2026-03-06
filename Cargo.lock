@@ -923,6 +923,7 @@ version = "0.1.0"
 dependencies = [
  "charms-client",
  "charms-sdk",
+ "hex-literal",
  "serde",
 ]
 

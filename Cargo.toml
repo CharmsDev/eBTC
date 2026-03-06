@@ -8,6 +8,7 @@ license = "MIT"
 [dependencies]
 charms-client = { version = "11.0.1" }
 charms-sdk = { version = "11.0.1" }
+hex-literal = { version = "1.1.0" }
 serde = { version = "1.0", features = ["derive"] }
 
 [profile.release]

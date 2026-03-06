@@ -1,5 +1,6 @@
 use charms_client::utxo_id_hash;
 use charms_sdk::data::{charm_values, check, sum_token_amount, App, Data, Transaction, NFT, TOKEN};
+use hex_literal::hex;
 use serde::{Deserialize, Serialize};
 
 /// Vault contract tag.
@@ -9,10 +10,7 @@ const VAULT: char = 'c';
 const DUST: u64 = 300;
 
 /// scriptPubKey for the vault address: bc1qrn970793udj0ugc3pj0hyrptts4rw5n7qxeya2
-const VAULT_SPK: [u8; 22] = [
-    0x00, 0x14, 0x1c, 0xcb, 0xe7, 0xf8, 0xb1, 0xe3, 0x64, 0xfe, 0x23, 0x11, 0x0c, 0x9f, 0x72,
-    0x0c, 0x2b, 0x5c, 0x2a, 0x37, 0x52, 0x7e,
-];
+const VAULT_SPK: [u8; 22] = hex!("00141ccbe7f8b1e364fe23110c9f720c2b5c2a37527e");
 
 /// CHIP-0420 reference NFT metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
