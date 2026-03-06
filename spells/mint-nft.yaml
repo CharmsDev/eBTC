@@ -5,12 +5,12 @@ tx:
     - ${in_utxo_0}
   outs:
     - 0:
-        ticker: eBTC
+        ticker: EBTC
         name: eBTC
-        description: Bitcoin-backed token
-        url: https://ebtc.org
-        image: https://ebtc.org/logo.png
-        decimals: 0
+        description: "enchanted BTC: Bitcoin magically wrapped into a charm. Backed 1:1 by BTC held in a Scrolls smart contract vault."
+        url: https://ebtc.charms.dev
+        image: ipfs://bafkreiamp6ocmalh4uu77jhcr2yh3i5ea4knet53qnmfuupmg45326u4wa
+        decimals: 8
   coins:
     - amount: ${amount_0}
       dest: ${dest_0}

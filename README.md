@@ -1,43 +1,68 @@
-This is a [Charms](https://charms.dev) app.
+# eBTC
 
-It is a simple fungible token managed by a reference NFT. The NFT has a state that specifies the remaining total supply of the tokens available to mint. If you control the NFT, you can mint new tokens.
+eBTC (enchanted BTC) is Bitcoin wrapped as a charm.
 
-NOTE: you may need to install Wasm WASI P1 support:
+eBTC tokens are minted by locking BTC in the eBTC vault (`bc1qrn970793udj0ugc3pj0hyrptts4rw5n7qxeya2`) and burned by spending BTC from it. The amount of eBTC minted or burned equals the BTC amount minus 300 sats (dust) per vault UTXO.
+
+A [CHIP-0420](https://github.com/CharmsDev/charms/tree/main/CHIPs/CHIP-0420) reference NFT provides on-chain metadata for the token (ticker, name, description, etc.). See [ref-nft.md](ref-nft.md) for NFT minting instructions.
+
+# Building
+
+## Prerequisites
+
+Install Wasm WASI P1 support:
 
 ```sh
 rustup target add wasm32-wasip1
 ```
 
-Build with:
+## Build
+
 ```sh
 cargo update
 app_bin=$(charms app build)
 ```
 
-The resulting Wasm binary will show up at `./target/wasm32-wasip1/release/ebtc.wasm`.
+The resulting Wasm binary will be at `./target/wasm32-wasip1/release/ebtc.wasm`.
 
-Get the verification key for the app with:
-```sh
-charms app vk $app_bin
-```
-
-Test the app with a simple NFT mint example:
+Get the verification key:
 
 ```sh
 export app_vk=$(charms app vk $app_bin)
-
-# set to a UTXO you're spending (you can see what you have by running `b listunspent`)
-export in_utxo_0="d8fa4cdade7ac3dff64047dc73b58591ebe638579881b200d4fea68fc84521f0:0"
-
-export app_id=$(echo -n "${in_utxo_0}" | sha256sum | cut -d' ' -f1)
-export addr_0="tb1p3w06fgh64axkj3uphn4t258ehweccm367vkdhkvz8qzdagjctm8qaw2xyv"
-export dest_0=$(charms util dest --addr ${addr_0})
-export amount_0=20000
-
-prev_txs=02000000000101a3a4c09a03f771e863517b8169ad6c08784d419e6421015e8c360db5231871eb0200000000fdffffff024331070000000000160014555a971f96c15bd5ef181a140138e3d3c960d6e1204e0000000000002251207c4bb238ab772a2000906f3958ca5f15d3a80d563f17eb4123c5b7c135b128dc0140e3d5a2a8c658ea8a47de425f1d45e429fbd84e68d9f3c7ff9cd36f1968260fa558fe15c39ac2c0096fe076b707625e1ae129e642a53081b177294251b002ddf600000000
-
-cat ./spells/mint-nft.yaml | envsubst | charms spell check \
-  --prev-txs=${prev_txs} \
-  --app-bins=${app_bin} \
-  --private-inputs=<(cat ./spells/mint-nft-private.yaml | envsubst)
 ```
+
+## Minting eBTC
+
+To mint eBTC tokens, create a transaction that sends BTC to the vault address and attaches the token and vault contract charms to the outputs.
+
+```sh
+# UTXO you're spending
+export in_utxo_0="<txid>:<vout>"
+
+# app_id: hash of the UTXO ID of the 1st input of the reference NFT minting transaction
+export app_id="<app_id_hex>"
+
+# vault output: BTC amount to lock (eBTC minted = amount - 300 dust)
+export vault_amount=10000
+
+# eBTC minted
+export mint_amount=9700  # vault_amount - 300 (dust)
+
+# change output
+export change_dest=$(charms util dest --addr <your_change_address>)
+export change_amount=<change_sats>
+
+cat ./spells/mint-token.yaml | envsubst | charms spell check \
+  --prev-txs=<prev_txs_hex> \
+  --app-bins=${app_bin}
+```
+
+The spell in `spells/mint-token.yaml` creates:
+- An output at the vault address carrying the vault contract charm (`c`)
+- An output carrying the newly minted eBTC tokens (`t`)
+
+The token contract verifies that the eBTC minted equals the BTC locked minus 300 sats dust per vault UTXO.
+
+## Burning eBTC
+
+To burn eBTC, spend a vault UTXO (BTC leaves the vault) and destroy the corresponding amount of eBTC tokens. The amount burned equals the BTC spent from the vault minus 300 sats dust per vault input.
