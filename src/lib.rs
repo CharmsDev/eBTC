@@ -136,6 +136,19 @@ fn vault_contract_satisfied(app: &App, tx: &Transaction) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use std::str::FromStr;
+
+    /// eBTC vault Scrolls address: generated with nonce
+    /// `1129595493` (`eBTC` in UTF-8 as LE byte-order integer)
+    const EBTC_VAULT_ADDR: &str = "bc1qrn970793udj0ugc3pj0hyrptts4rw5n7qxeya2";
+
     #[test]
-    fn dummy() {}
+    fn test_vault_dest() {
+        let address = bitcoin::Address::from_str(EBTC_VAULT_ADDR)
+            .expect("valid address")
+            .require_network(bitcoin::Network::Bitcoin)
+            .expect("mainnet address");
+        assert_eq!(address.script_pubkey().as_bytes(), VAULT_DEST);
+    }
 }

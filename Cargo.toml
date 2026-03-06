@@ -19,5 +19,8 @@ strip = "symbols"
 panic = "abort"
 overflow-checks = true
 
+[dev-dependencies]
+bitcoin = "0.32.8"
+
 # Empty `[workspace]` section to make this a "top-level" project
 [workspace]
