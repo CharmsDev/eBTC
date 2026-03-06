@@ -13,7 +13,7 @@ const VAULT: char = 'c';
 const DUST: u64 = 300;
 
 /// scriptPubKey for the vault address: bc1qrn970793udj0ugc3pj0hyrptts4rw5n7qxeya2
-const VAULT_SPK: [u8; 22] = hex!("00141ccbe7f8b1e364fe23110c9f720c2b5c2a37527e");
+const VAULT_DEST: [u8; 22] = hex!("00141ccbe7f8b1e364fe23110c9f720c2b5c2a37527e");
 
 /// CHIP-0420 reference NFT metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,7 +118,7 @@ fn vault_contract_satisfied(app: &App, tx: &Transaction) -> anyhow::Result<()> {
     for (i, (_, charms)) in tx.ins.iter().enumerate() {
         if charms.contains_key(app) {
             ensure!(
-                coin_ins[i].dest.as_slice() == VAULT_SPK,
+                coin_ins[i].dest.as_slice() == VAULT_DEST,
                 "input {i} with vault charm not at vault address"
             );
         }
@@ -126,7 +126,7 @@ fn vault_contract_satisfied(app: &App, tx: &Transaction) -> anyhow::Result<()> {
     for (i, charms) in tx.outs.iter().enumerate() {
         if charms.contains_key(app) {
             ensure!(
-                coin_outs[i].dest.as_slice() == VAULT_SPK,
+                coin_outs[i].dest.as_slice() == VAULT_DEST,
                 "output {i} with vault charm not at vault address"
             );
         }
