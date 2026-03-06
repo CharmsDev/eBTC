@@ -1,6 +1,8 @@
 use anyhow::{ensure, Context};
 use charms_client::utxo_id_hash;
-use charms_sdk::data::{charm_values, sum_token_amount, App, Data, Transaction, NFT, TOKEN};
+use charms_sdk::data::{
+    charm_values, sum_token_amount, App, Charms, Data, NativeOutput, Transaction, NFT, TOKEN,
+};
 use hex_literal::hex;
 use serde::{Deserialize, Serialize};
 
@@ -47,7 +49,9 @@ fn can_mint_nft(app: &App, tx: &Transaction) -> anyhow::Result<()> {
 
     let nft_charms = charm_values(app, tx.outs.iter()).collect::<Vec<_>>();
     ensure!(nft_charms.len() == 1, "expected exactly one NFT output");
-    nft_charms[0].value::<NftContent>().context("invalid NFT content")?;
+    nft_charms[0]
+        .value::<NftContent>()
+        .context("invalid NFT content")?;
     Ok(())
 }
 
@@ -56,11 +60,18 @@ fn can_mint_nft(app: &App, tx: &Transaction) -> anyhow::Result<()> {
 /// Balance equation:
 ///   token_out - token_in == (vault_out - n_vault_outs * DUST) - (vault_in - n_vault_ins * DUST)
 fn can_mint_or_burn_token(app: &App, tx: &Transaction) -> anyhow::Result<()> {
+    let vault_app = App {
+        tag: VAULT,
+        identity: app.identity.clone(),
+        vk: app.vk.clone(),
+    };
+
     let coin_ins = tx.coin_ins.as_ref().context("coin_ins required")?;
     let coin_outs = tx.coin_outs.as_ref().context("coin_outs required")?;
 
-    let (vault_in, n_vault_ins) = vault_btc_total(coin_ins)?;
-    let (vault_out, n_vault_outs) = vault_btc_total(coin_outs)?;
+    let in_charms = tx.ins.iter().map(|(_, c)| c);
+    let (vault_in, n_vault_ins) = vault_btc_total(&vault_app, coin_ins, in_charms)?;
+    let (vault_out, n_vault_outs) = vault_btc_total(&vault_app, coin_outs, tx.outs.iter())?;
 
     let effective_in = vault_in - n_vault_ins * DUST;
     let effective_out = vault_out - n_vault_outs * DUST;
@@ -77,13 +88,21 @@ fn can_mint_or_burn_token(app: &App, tx: &Transaction) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Sum BTC amounts at the vault address and count the number of vault UTXOs.
-fn vault_btc_total(coins: &[charms_sdk::data::NativeOutput]) -> anyhow::Result<(u64, u64)> {
+/// Sum BTC amounts for outputs carrying the vault contract charm.
+fn vault_btc_total<'a>(
+    vault_app: &App,
+    coins: &[NativeOutput],
+    charms_outputs: impl Iterator<Item = &'a Charms>,
+) -> anyhow::Result<(u64, u64)> {
     let mut total = 0u64;
     let mut count = 0u64;
-    for coin in coins {
-        if coin.dest.as_slice() == VAULT_SPK {
-            ensure!(coin.amount >= DUST, "vault UTXO amount {} < DUST", coin.amount);
+    for (coin, charms) in coins.iter().zip(charms_outputs) {
+        if charms.contains_key(vault_app) {
+            ensure!(
+                coin.amount >= DUST,
+                "vault UTXO amount {} < DUST",
+                coin.amount
+            );
             total += coin.amount;
             count += 1;
         }
