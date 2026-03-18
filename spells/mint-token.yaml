@@ -3,15 +3,21 @@ version: 11
 tx:
   ins:
     - ${in_utxo_0}
+
   outs:
     - 1: ${mint_amount}
-    - ~
+
+    # vault output
+    - 0: ~
+
   coins:
-    - amount: ${vault_amount}
-      dest: bc1qrn970793udj0ugc3pj0hyrptts4rw5n7qxeya2
-    - amount: ${change_amount}
-      dest: ${change_dest}
+    - amount: 300
+      dest: ${dest_1}
+
+    # vault output
+    - amount: ${sats_amount}
+      dest: 00141ccbe7f8b1e364fe23110c9f720c2b5c2a37527e
 
 app_public_inputs:
-  t/${app_id}/${app_vk}: ~
   c/${app_id}/${app_vk}: ~
+  t/${app_id}/${app_vk}: ~
