@@ -1,0 +1,16 @@
+version: 11
+
+tx:
+  ins:
+    - ${in_utxo_0}
+    - ${in_utxo_1}
+  outs:
+    - 0: ${send_amount}
+  beamed_outs:
+    0: 7a0fae5c257768d4e5f9e0186da0db75a938b80f1854c3f833f66efffc53eab8
+  coins:
+    - amount: 300
+      dest: ${dest_1}
+
+app_public_inputs:
+  t/${app_id}/${app_vk}: ~
