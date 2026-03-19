@@ -1,0 +1,14 @@
+version: 11
+
+tx:
+  ins:
+    - ${in_utxo_0}
+    - ${in_utxo_1}
+  outs:
+    - 0: ${send_amount}
+  coins:
+    - amount: 2000000
+      dest: ${dest_1}
+
+app_public_inputs:
+  t/${app_id}/${app_vk}: ~
