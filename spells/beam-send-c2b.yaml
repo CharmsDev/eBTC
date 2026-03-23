@@ -1,0 +1,18 @@
+version: 12
+
+tx:
+  ins:
+    - ${in_utxo_0}
+    - ${in_utxo_1}
+  outs:
+    - 0: ${send_amount}
+      1: 1
+  beamed_outs:
+    0: 9f2419524744c6d99932633339ff9196fd98e53913533bcc9998576df619cb53
+  coins:
+    - amount: 1000000
+      dest: ${dest_1}
+
+app_public_inputs:
+  t/0796f63ed48144b4ec69fb794fbc2290ae63acf945fb035d5474648b50ee43b6/fd0cac892e457454be0212fa7d9a0e1517d5bd6a33aa7c66a1f10f55e375c290: ~
+  t/3d7fe7e4cea6121947af73d70e5119bebd8aa5b7edfe74bfaf6e779a1847bd9b/c975d4e0c292fb95efbda5c13312d6ac1d8b5aeff7f0f1e5578645a2da70ff5f: ~

@@ -1,0 +1,23 @@
+version: 12
+
+tx:
+  ins:
+    - ${in_utxo_0} # beam placeholder UTXO
+    - ${in_utxo_1} # BTC in eBTC vault
+    - ${in_utxo_2} # funding
+  outs:
+    - 2: 1
+    - 0: ~
+    - {}
+  coins:
+    - amount: ${send_amount_plus_dust}
+      dest: ${dest_0} # wallet address for unlocked BTC
+    - amount: ${remainder_locked}
+      dest: ${dest_1} # eBTC vault
+    - amount: 1103
+      dest: ${fee_dest} # Scrolls fee
+
+app_public_inputs:
+  c/0796f63ed48144b4ec69fb794fbc2290ae63acf945fb035d5474648b50ee43b6/fd0cac892e457454be0212fa7d9a0e1517d5bd6a33aa7c66a1f10f55e375c290: ~
+  t/0796f63ed48144b4ec69fb794fbc2290ae63acf945fb035d5474648b50ee43b6/fd0cac892e457454be0212fa7d9a0e1517d5bd6a33aa7c66a1f10f55e375c290: ~
+  t/3d7fe7e4cea6121947af73d70e5119bebd8aa5b7edfe74bfaf6e779a1847bd9b/c975d4e0c292fb95efbda5c13312d6ac1d8b5aeff7f0f1e5578645a2da70ff5f: ~
