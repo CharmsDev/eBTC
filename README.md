@@ -2,6 +2,8 @@
 
 eBTC (enchanted BTC) is Bitcoin wrapped as a charm.
 
+Logo files are in [`assets/`](assets/).
+
 eBTC tokens are minted by locking BTC in the eBTC vault and burned by spending BTC from it. The amount of eBTC minted or burned equals the BTC amount minus 300 sats (dust) per vault UTXO.
 
 ## Vault Address
