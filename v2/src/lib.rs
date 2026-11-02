@@ -262,7 +262,7 @@ mod tests {
     use anyhow::{Context, ensure};
     use charms_client::bitcoin_tx::SCROLLS_ADDRS_PUBKEY;
     use charms_client::utxo_id_hash;
-    use charms_sdk::data::{NativeOutput, TxId};
+    use charms_sdk::data::{AppSignature, B32, NativeOutput, TxId};
     use secp256k1::schnorr::Signature;
     use secp256k1::{Message, Secp256k1, XOnlyPublicKey};
     use serde::Deserialize;
@@ -629,6 +629,55 @@ mod tests {
             &empty(),
             &empty()
         ));
+    }
+
+    #[test]
+    fn published_record_agrees() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repo = root.parent().unwrap();
+        let identity_txt = fs::read_to_string(root.join("identity.txt")).unwrap();
+        let mut lines = identity_txt.lines();
+        assert_eq!(lines.next().unwrap(), format!("outpoint {MINT_OUTPOINT}"));
+        assert_eq!(lines.next().unwrap(), format!("identity {MINT_IDENTITY}"));
+        assert!(lines.next().is_none());
+
+        let outpoint = published_outpoint();
+        let identity = utxo_identity(&outpoint);
+        assert_eq!(hex::encode(identity.0), MINT_IDENTITY);
+        assert_eq!(utxo_id_hash(&outpoint).0, identity.0);
+
+        let public_key = hex::decode(
+            fs::read_to_string(root.join("vk/public-key.hex"))
+                .unwrap()
+                .trim(),
+        )
+        .unwrap();
+        let public_key: [u8; 32] = public_key.try_into().unwrap();
+        let vk: [u8; 32] = Sha256::digest(public_key).into();
+        assert_eq!(
+            fs::read_to_string(root.join("vk/vk.hex")).unwrap().trim(),
+            hex::encode(vk)
+        );
+
+        let wasm = fs::read(root.join("wasm/ebtc_v2.wasm")).unwrap();
+        let wasm_hash: [u8; 32] = Sha256::digest(&wasm).into();
+        assert_ne!(wasm_hash, vk);
+        let signatures: BTreeMap<B32, AppSignature> = serde_yaml::from_str(
+            &fs::read_to_string(root.join("wasm/ebtc_v2.wasm.sig.yaml")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(signatures.len(), 1);
+        let (signed_vk, app_sig) = signatures.iter().next().unwrap();
+        assert_eq!(signed_vk.0, vk);
+        assert_eq!(app_sig.public_key.0, public_key);
+        verify_bip340(&public_key, wasm_hash, &app_sig.signature).unwrap();
+
+        let vk_hex = hex::encode(vk);
+        for readme in [repo.join("README.md"), root.join("README.md")] {
+            let text = fs::read_to_string(&readme).unwrap();
+            assert!(text.contains(MINT_IDENTITY), "{}", readme.display());
+            assert!(text.contains(&vk_hex), "{}", readme.display());
+        }
     }
 
     #[test]

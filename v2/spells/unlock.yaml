@@ -1,0 +1,20 @@
+version: 16
+tx:
+  ins:
+    - ${vault_utxo}
+    - ${token_utxo}
+  outs:
+    - ~
+    - ~
+  coins:
+    - amount: ${user_amount}
+      dest: ${user_dest}
+    - amount: ${fee_amount}
+      dest: ${fee_dest}
+app_public_inputs:
+  s/${app_id}/${app_vk}: ~
+  t/${app_id}/${app_vk}: ~
+versioned_apps:
+  "${app_vk}":
+    version: 1
+    wasm_hash: ${wasm_hash}

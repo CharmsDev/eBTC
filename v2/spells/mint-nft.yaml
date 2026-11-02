@@ -1,0 +1,18 @@
+version: 16
+tx:
+  ins:
+    - ${in_utxo_0}
+  outs:
+    - 0:
+        ticker: eBTC
+        name: eBTC
+        description: "Enchanted BTC. Bitcoin wrapped into a charm. Backing satoshis sit in Scrolls outputs."
+        url: https://ebtc.charms.dev
+        image: ipfs://bafkreiamp6ocmalh4uu77jhcr2yh3i5ea4knet53qnmfuupmg45326u4wa
+        decimals: 8
+app_public_inputs:
+  n/${app_id}/${app_vk}: ~
+versioned_apps:
+  "${app_vk}":
+    version: 1
+    wasm_hash: ${wasm_hash}
