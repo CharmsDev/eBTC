@@ -4,8 +4,8 @@ tx:
     - ${vault_utxo}
     - ${token_utxo}
   outs:
-    - ~
-    - ~
+    - {}
+    - {}
   coins:
     - amount: ${user_amount}
       dest: ${user_dest}

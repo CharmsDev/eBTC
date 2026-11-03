@@ -15,7 +15,7 @@ The app version is 1. The committed wasm is `wasm/ebtc_v2.wasm`. The committed s
 Generate the signing key outside this repository. Commit `vk/public-key.hex`, `vk/vk.hex`, and the wasm signature. Leave the secret key out of the tree. `.gitignore` ignores `.charms/` and `app-key.json`.
 
 ```sh
-rustup target add wasm32-wasip1 --toolchain 1.93
+rustup target add wasm32-wasip1 --toolchain 1.94.1
 cargo build --locked --release --target wasm32-wasip1
 ```
 
@@ -23,8 +23,8 @@ Cargo writes `target/wasm32-wasip1/release/ebtc_v2.wasm`.
 
 ## Test
 
-`charms-client` depends on `uplc` 1.1.23, which declares Rust 1.94.1. This package uses Rust 1.93. `--ignore-rust-version` tells Cargo to skip that declaration. The tests compile and run on 1.93.
+`v2/rust-toolchain.toml` pins Rust 1.94.1. The test dependency `charms-client` pulls `uplc` 1.1.23, and that crate requires this compiler. The v1 package stays on Rust 1.93.
 
 ```sh
-cargo test --locked --ignore-rust-version
+cargo test --locked
 ```
