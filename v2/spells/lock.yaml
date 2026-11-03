@@ -1,0 +1,21 @@
+version: 16
+tx:
+  ins:
+    - ${in_utxo_0}
+  outs:
+    - 1: ${mint_amount}
+    - 0: ~
+  coins:
+    - amount: ${token_output_sats}
+      dest: ${change_dest}
+    - amount: ${vault_amount}
+      dest: ""
+  scrolls:
+    - 1
+app_public_inputs:
+  s/${app_id}/${app_vk}: ~
+  t/${app_id}/${app_vk}: ~
+versioned_apps:
+  "${app_vk}":
+    version: 1
+    wasm_hash: ${wasm_hash}

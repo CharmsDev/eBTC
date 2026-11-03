@@ -2,3 +2,5 @@
 /elf
 
 /tmp
+.charms/
+app-key.json
