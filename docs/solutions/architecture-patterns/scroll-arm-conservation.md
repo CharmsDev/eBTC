@@ -36,11 +36,13 @@ eBTC v1 keeps the balance check on the token tag and the vault script check on t
 
 Send both tags through the conservation check. `app_contract_impl` matches `TOKEN` and `SCROLL` to `vault_checks` (`v2/src/lib.rs:161`). `vault_checks` builds one `AppId` from the running app's identity and verification key (`v2/src/lib.rs:182`). It then loads the scroll ledger and the token delta (`v2/src/lib.rs:186`) and requires the deltas to be equal (`v2/src/lib.rs:188`).
 
-`scroll_ledger` records each coin that carries the scroll app (`v2/src/lib.rs:213`). `token_delta` sums amounts that carry the token app (`v2/src/lib.rs:251`). The tag that entered `vault_checks` still produces both lookups. `AppId::token` and `AppId::scroll` differ by tag (`v2/src/lib.rs:71`, `v2/src/lib.rs:75`). An `App` is a tag, an identity, and a verification key (`/tmp/charms/charms-data/src/lib.rs:223`). Those two tags are two apps.
+The Charms links in this note use `2b066081b3877aa8dd68540d5de6386b1a7d0d08`, pinned in `v2/Cargo.toml`.
 
-The host list is `app_public_inputs`. `apps` returns that map's keys (`/tmp/charms/charms-client/src/lib.rs:340`). On the path that supplies app binaries, `is_correct` passes the same map to `apps_satisfied` (`/tmp/charms/charms-client/src/lib.rs:536`). `run_all` iterates that map (`/tmp/charms/charms-app-runner/src/lib.rs:561`). An app absent from the map is outside that iteration.
+`scroll_ledger` records each coin that carries the scroll app (`v2/src/lib.rs:213`). `token_delta` sums amounts that carry the token app (`v2/src/lib.rs:251`). The tag that entered `vault_checks` still produces both lookups. `AppId::token` and `AppId::scroll` differ by tag (`v2/src/lib.rs:71`, `v2/src/lib.rs:75`). An `App` is a tag, an identity, and a verification key ([charms-data/src/lib.rs:223-226](https://github.com/CharmsDev/charms/blob/2b066081b3877aa8dd68540d5de6386b1a7d0d08/charms-data/src/lib.rs#L223-L226)). Those two tags are two apps.
 
-`check_input_apps_are_referenced` walks spent inputs and rejects a charm whose app is missing from the map (`/tmp/charms/charms-client/src/lib.rs:669`). `is_correct` calls it (`/tmp/charms/charms-client/src/lib.rs:487`). A coin the spell leaves unspent is outside that walk, so the host does not require its app.
+The host list is `app_public_inputs`. `apps` returns that map's keys ([charms-client/src/lib.rs:340-342](https://github.com/CharmsDev/charms/blob/2b066081b3877aa8dd68540d5de6386b1a7d0d08/charms-client/src/lib.rs#L340-L342)). On the path that supplies app binaries, `is_correct` passes the same map to `apps_satisfied` ([charms-client/src/lib.rs:536-539](https://github.com/CharmsDev/charms/blob/2b066081b3877aa8dd68540d5de6386b1a7d0d08/charms-client/src/lib.rs#L536-L539)). `run_all` iterates that map ([charms-app-runner/src/lib.rs:561-562](https://github.com/CharmsDev/charms/blob/2b066081b3877aa8dd68540d5de6386b1a7d0d08/charms-app-runner/src/lib.rs#L561-L562)). An app absent from the map is outside that iteration.
+
+`check_input_apps_are_referenced` walks spent inputs and rejects a charm whose app is missing from the map ([charms-client/src/lib.rs:669-706](https://github.com/CharmsDev/charms/blob/2b066081b3877aa8dd68540d5de6386b1a7d0d08/charms-client/src/lib.rs#L669-L706)). `is_correct` calls it ([charms-client/src/lib.rs:487](https://github.com/CharmsDev/charms/blob/2b066081b3877aa8dd68540d5de6386b1a7d0d08/charms-client/src/lib.rs#L487)). An existing coin the spell does not spend is outside that walk, so the host does not require its app. A charm on an output the spell creates still has to name a listed app.
 
 v1 splits the work by tag. `app_contract_impl` sends `TOKEN` to `can_mint_or_burn_token` and the vault tag to `vault_contract_satisfied` (`src/lib.rs:39`, `src/lib.rs:40`). The balance comparison is the token arm (`src/lib.rs:84`). The vault arm checks the vault script on vault-tagged coins and then returns (`src/lib.rs:114`, `src/lib.rs:134`). Spending the vault coin runs the vault arm. Leaving the token coin unspent does not require the token app, so a spell that also omits it leaves the balance check unrun. That split does not transfer.
 
@@ -48,7 +50,7 @@ v1 splits the work by tag. `app_contract_impl` sends `TOKEN` to `can_mint_or_bur
 
 A spell can spend the scroll coin, leave the token coin unspent, and omit the token app. `check_input_apps_are_referenced` does not demand the token app for that spell. `run_all` does not execute it. The scroll app is on the spent input, so the host does require the scroll app, and the scroll arm is the conservation check that runs.
 
-The other direction is a token output with no scroll coin. Output charms are indices into `app_public_inputs` (`/tmp/charms/charms-client/src/lib.rs:133`). `well_formed` requires each output index to fall inside that map (`/tmp/charms/charms-client/src/lib.rs:290`). Creating a token output lists the token app, and the spell can still omit the scroll app when no scroll coin is spent. The token arm is the conservation check that runs.
+The other direction is a token output with no scroll coin. Each output charm maps an app index to data ([charms-client/src/lib.rs:133-135](https://github.com/CharmsDev/charms/blob/2b066081b3877aa8dd68540d5de6386b1a7d0d08/charms-client/src/lib.rs#L133-L135)). `well_formed` requires each index to fall inside `app_public_inputs` ([charms-client/src/lib.rs:290-294](https://github.com/CharmsDev/charms/blob/2b066081b3877aa8dd68540d5de6386b1a7d0d08/charms-client/src/lib.rs#L290-L294)). Creating a token output lists the token app, and the spell can still omit the scroll app when no scroll coin is spent. The token arm is the conservation check that runs.
 
 Either arm has to reject an unbalanced pair. A check that stays on one tag accepts the spell that spends the other tag.
 
@@ -56,7 +58,7 @@ Either arm has to reject an unbalanced pair. A check that stays on one tag accep
 
 - Two apps share an identity and a verification key and differ by tag, and one invariant covers both.
 - A spell can spend one of those apps and leave the other unspent.
-- The host executes `app_public_inputs` and forces a listing for apps on spent inputs.
+- The host executes `app_public_inputs` and forces a listing for an app on a spent input or on an output the spell creates.
 - A second tag is added beside a conservation check that already lives on one tag.
 
 ## Examples

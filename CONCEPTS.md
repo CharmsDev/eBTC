@@ -6,7 +6,7 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 An app identified by a tag, an identity, and a verification key. The same identity and key with different tags are different apps.
 
-The host runs an app only when a spell lists it. A listing is required when that app sits on a spent input. An app that sits only on an output the spell does not spend can be left off the spell, and then it does not run.
+The host runs an app only when a spell lists it. A listing is required when that app sits on a spent input, and when the spell creates an output whose charm names that app. An app that sits only on an existing output the spell leaves untouched can be left off the spell, and then it does not run.
 
 ## Scroll
 
@@ -16,7 +16,9 @@ A newly created scroll may omit its script until the prover fills it. A spent sc
 
 ## Token
 
-Fungible units of this app, carried on a different output from the scroll. Creating or destroying units must match the change in locked scroll value.
+Fungible units of this app. Creating or destroying units must match the change in locked scroll value.
+
+The published lock spell places the token and the scroll on separate outputs. Conservation does not require that split. One output may carry both tags, and each tag is still its own app.
 
 ## Relationships
 
