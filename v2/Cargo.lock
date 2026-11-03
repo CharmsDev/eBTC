@@ -1059,7 +1059,9 @@ name = "ebtc_v2"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitcoin",
  "charms-client",
+ "charms-data",
  "charms-sdk",
  "hex",
  "secp256k1 0.29.1",

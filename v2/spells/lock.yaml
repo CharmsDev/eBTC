@@ -6,7 +6,7 @@ tx:
     - 1: ${mint_amount}
     - 0: ~
   coins:
-    - amount: 300
+    - amount: ${token_output_sats}
       dest: ${change_dest}
     - amount: ${vault_amount}
       dest: ""

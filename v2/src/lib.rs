@@ -260,8 +260,17 @@ mod tests {
     use super::*;
 
     use anyhow::{Context, ensure};
-    use charms_client::bitcoin_tx::SCROLLS_ADDRS_PUBKEY;
-    use charms_client::utxo_id_hash;
+    use bitcoin::absolute::LockTime;
+    use bitcoin::consensus::encode::serialize_hex;
+    use bitcoin::hashes::Hash as _;
+    use bitcoin::{
+        Amount, OutPoint, ScriptBuf, Sequence, Transaction as BitcoinTransaction, TxIn, TxOut, Txid,
+        Witness,
+    };
+    use charms_client::bitcoin_tx::{BitcoinTx, SCROLLS_ADDRS_PUBKEY};
+    use charms_client::tx::{EnchantedTx as _, Tx};
+    use charms_client::{NormalizedSpell, SignedScrollOutputs, utxo_id_hash};
+    use charms_data::AppInput;
     use charms_sdk::data::{AppSignature, B32, NativeOutput, TxId};
     use secp256k1::schnorr::Signature;
     use secp256k1::{Message, Secp256k1, XOnlyPublicKey};
@@ -639,6 +648,10 @@ mod tests {
         let mut lines = identity_txt.lines();
         assert_eq!(lines.next().unwrap(), format!("outpoint {MINT_OUTPOINT}"));
         assert_eq!(lines.next().unwrap(), format!("identity {MINT_IDENTITY}"));
+        assert_eq!(
+            lines.next().unwrap(),
+            "note test commitment, not a bitcoin output"
+        );
         assert!(lines.next().is_none());
 
         let outpoint = published_outpoint();
@@ -707,6 +720,162 @@ mod tests {
                 );
             }
         }
+    }
+
+    fn funding_input() -> (Tx, UtxoId) {
+        let funding = BitcoinTransaction {
+            version: bitcoin::transaction::Version::TWO,
+            lock_time: LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint::new(Txid::from_byte_array([9; 32]), 0),
+                script_sig: ScriptBuf::new(),
+                sequence: Sequence::MAX,
+                witness: Witness::new(),
+            }],
+            output: vec![TxOut {
+                value: Amount::from_sat(20_000),
+                script_pubkey: ScriptBuf::new(),
+            }],
+        };
+        let wrapped = BitcoinTx::from_hex(&serialize_hex(&funding)).unwrap();
+        let utxo = UtxoId(wrapped.tx_id(), 0);
+        (Tx::Bitcoin(wrapped), utxo)
+    }
+
+    fn rendered_spell(template: &str, pairs: &[(&str, String)]) -> NormalizedSpell {
+        let mut yaml = template.to_string();
+        for (key, value) in pairs {
+            yaml = yaml.replace(&format!("${{{key}}}"), value);
+        }
+        serde_yaml::from_str(&yaml).unwrap()
+    }
+
+    fn published_vk() -> String {
+        fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("vk/vk.hex"))
+            .unwrap()
+            .trim()
+            .to_string()
+    }
+
+    fn wasm_bytes() -> Vec<u8> {
+        fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("wasm/ebtc_v2.wasm")).unwrap()
+    }
+
+    fn app_input() -> AppInput {
+        let wasm = wasm_bytes();
+        let wasm_hash: [u8; 32] = Sha256::digest(&wasm).into();
+        let signatures: BTreeMap<B32, AppSignature> = serde_yaml::from_str(
+            &fs::read_to_string(
+                Path::new(env!("CARGO_MANIFEST_DIR")).join("wasm/ebtc_v2.wasm.sig.yaml"),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        AppInput {
+            app_binaries: BTreeMap::from([(B32(wasm_hash), wasm)]),
+            app_private_inputs: BTreeMap::new(),
+            app_signatures: signatures,
+        }
+    }
+
+    fn lock_spell(input: &UtxoId) -> NormalizedSpell {
+        let wasm_hash = hex::encode(Sha256::digest(wasm_bytes()));
+        rendered_spell(
+            include_str!("../spells/lock.yaml"),
+            &[
+                ("in_utxo_0", input.to_string()),
+                ("mint_amount", "9700".to_string()),
+                ("vault_amount", "10000".to_string()),
+                ("token_output_sats", "546".to_string()),
+                (
+                    "change_dest",
+                    "00140000000000000000000000000000000000000000".to_string(),
+                ),
+                ("app_id", MINT_IDENTITY.to_string()),
+                ("app_vk", published_vk()),
+                ("wasm_hash", wasm_hash),
+            ],
+        )
+    }
+
+    fn fixture_scrolls(yaml: &str) -> (P2wpkh, SignedScrollOutputs) {
+        let script = open_canister_script(yaml).unwrap();
+        let fixture: ScrollFixture = serde_yaml::from_str(yaml).unwrap();
+        (
+            script,
+            SignedScrollOutputs {
+                script_pubkeys: fixture.script_pubkeys,
+                signature: fixture.signature,
+            },
+        )
+    }
+
+    #[test]
+    fn nft_spell_lists_a_coin() {
+        let spell = rendered_spell(
+            include_str!("../spells/mint-nft.yaml"),
+            &[
+                ("in_utxo_0", MINT_OUTPOINT.to_string()),
+                ("nft_amount", "546".to_string()),
+                (
+                    "nft_dest",
+                    "00140000000000000000000000000000000000000000".to_string(),
+                ),
+                ("app_id", MINT_IDENTITY.to_string()),
+                ("app_vk", published_vk()),
+                ("wasm_hash", hex::encode([7u8; 32])),
+            ],
+        );
+        let coins = spell.tx.coins.expect("coins");
+        assert_eq!(coins.len(), spell.tx.outs.len());
+        assert!(coins[0].content.is_none());
+        assert!(!coins[0].dest.is_empty());
+    }
+
+    #[test]
+    fn protocol_accepts_the_lock_spell_and_rejects_a_user_script() {
+        let (prev, input) = funding_input();
+        let (script, signed) = fixture_scrolls(include_str!("../tests/fixtures/lock-a.yaml"));
+        let mut spell = lock_spell(&input);
+        assert!(spell.tx.coins.as_ref().unwrap()[1].dest.is_empty());
+        let preflight = charms_client::is_correct(
+            &spell,
+            &vec![prev.clone()],
+            Some(app_input()),
+            &[0u8; 32],
+            &BTreeMap::new(),
+            None,
+        )
+        .unwrap();
+        assert!(!preflight);
+
+        spell.tx.coins.as_mut().unwrap()[1].dest = script.to_script().to_vec();
+        let accepted = charms_client::is_correct(
+            &spell,
+            &vec![prev.clone()],
+            Some(app_input()),
+            &[0u8; 32],
+            &BTreeMap::new(),
+            Some(&signed),
+        )
+        .unwrap();
+        assert!(accepted);
+
+        let user_script = [0x00, 0x14].into_iter().chain([0x11; 20]).collect();
+        spell.tx.coins.as_mut().unwrap()[1].dest = user_script;
+        let rejected = charms_client::is_correct(
+            &spell,
+            &vec![prev],
+            Some(app_input()),
+            &[0u8; 32],
+            &BTreeMap::new(),
+            Some(&signed),
+        )
+        .unwrap_err();
+        assert!(
+            rejected.to_string().contains("does not match"),
+            "{rejected:#}"
+        );
     }
 
     fn walk_files(dir: &Path, out: &mut Vec<PathBuf>) {

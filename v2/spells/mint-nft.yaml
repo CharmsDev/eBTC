@@ -10,6 +10,9 @@ tx:
         url: https://ebtc.charms.dev
         image: ipfs://bafkreiamp6ocmalh4uu77jhcr2yh3i5ea4knet53qnmfuupmg45326u4wa
         decimals: 8
+  coins:
+    - amount: ${nft_amount}
+      dest: ${nft_dest}
 app_public_inputs:
   n/${app_id}/${app_vk}: ~
 versioned_apps:
